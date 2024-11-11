@@ -14,6 +14,7 @@ import (
 	pb "github.com/kanerix/mutual-exclusion/proto"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type server struct {
@@ -24,7 +25,7 @@ type server struct {
 	nodeID       string
 }
 
-var nodes = []string{"localhost:50051", "localhost:50052", "localhost:50053"}
+var nodes = []string{"localhost:3001", "localhost:3002", "localhost:3003"}
 
 func (s *server) RequestAccess(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	s.mu.Lock()
@@ -55,8 +56,7 @@ func (s *server) ReleaseAccess(ctx context.Context, release *pb.Release) (*pb.Re
 }
 
 func (s *server) notify(targetNode string) {
-	// Notify the next node in the queue
-	conn, err := grpc.Dial(targetNode, grpc.WithInsecure())
+	conn, err := grpc.NewClient(targetNode, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -104,7 +104,7 @@ func startServer(nodeID, address string) {
 func requestCriticalSection(nodeID string) {
 	for _, addr := range nodes {
 		if addr != fmt.Sprintf("localhost:%s", nodeID) {
-			conn, err := grpc.Dial(addr, grpc.WithInsecure())
+			conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Fatalf("did not connect: %v", err)
 			}
@@ -123,20 +123,20 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatalf("Please provide a port for the server.")
 	}
+
 	nodeID := os.Args[1]
+
 	go startServer(nodeID, fmt.Sprintf("localhost:%s", nodeID))
 
 	time.Sleep(2 * time.Second)
 
-	// Simulate requesting critical section
 	requestCriticalSection(nodeID)
 
 	time.Sleep(5 * time.Second)
 
-	// Simulate releasing critical section
 	for _, addr := range nodes {
 		if addr != fmt.Sprintf("localhost:%s", nodeID) {
-			conn, err := grpc.Dial(addr, grpc.WithInsecure())
+			conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				log.Fatalf("did not connect: %v", err)
 			}

@@ -1,4 +1,4 @@
-module raft
+module github.com/kanerix/mutual-exclusion
 
 go 1.23.3
 
