@@ -37,9 +37,11 @@ func (s *server) RequestAccess(ctx context.Context, req *pb.Request) (*pb.Respon
 	if !s.isProcessing && s.queue[0] == req.NodeId {
 		s.isProcessing = true
 		s.queue = s.queue[1:]
+
 		fmt.Printf("[%s] Access Granted to %s\n", s.nodeID, req.NodeId)
 		return &pb.Response{Granted: true}, nil
 	}
+
 	return &pb.Response{Granted: false}, nil
 }
 
@@ -51,6 +53,7 @@ func (s *server) ReleaseAccess(ctx context.Context, release *pb.Release) (*pb.Re
 	if len(s.queue) > 0 {
 		go s.notify(s.queue[0])
 	}
+
 	s.isProcessing = false
 	return &pb.Response{Granted: true}, nil
 }
@@ -64,6 +67,7 @@ func (s *server) notify(targetNode string) {
 
 	client := pb.NewMutualExclusionClient(conn)
 	_, err = client.RequestAccess(context.Background(), &pb.Request{NodeId: targetNode})
+
 	if err != nil {
 		log.Fatalf("could not request access: %v", err)
 	}
