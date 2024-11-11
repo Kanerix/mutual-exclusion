@@ -8,11 +8,13 @@ When the nodes start, they start off by sending a request to all other nodes tha
 
 ## Discussion
 
-[Node 3001 logs](logs/node_3001.txt)
-[Node 3002 logs](logs/node_3002.txt)
-[Node 3003 logs](logs/node_3003.txt)
+[Node 3001 logs](https://github.com/Kanerix/mutual-exclusion/logs/node_3001.txt)
 
-All nodes should start of by sending a request to the peer nodes to see if they can access.
+[Node 3002 logs](https://github.com/Kanerix/mutual-exclusion/logs/node_3002.txt)
+
+[Node 3003 logs](https://github.com/Kanerix/mutual-exclusion/logs/node_3003.txt)
+
+All nodes should start of by sending a request to the peer nodes to see if they can access the critical zone. We see that in the first 2 lines of each logs. We then see on the next lines that some get denied like node 3003 and others get granted access. Whenever a node is done using the critical zone, the peer nodes are notified to ask for permission again. This is seen in the logs where nodes says thier access is released (like node 3002 on line 6). This continues until all nodes have had access to the critical zone.
 
 ## GitHub repository
 
@@ -20,4 +22,4 @@ You can find the repository on my GitHub: <https://github.com/Kanerix/mutual-exc
 
 ## System logs
 
-System logs can also be found in the repo: <https://github.com/Kanerix/mutual-exclusion>
+System logs can also be found in the repo: <https://github.com/Kanerix/mutual-exclusion/logs>
