@@ -15,3 +15,5 @@ go run server/main.go 3001
 go run server/main.go 3002
 go run server/main.go 3003
 ```
+
+Then all nodes will start logging what they do and the processes are running.
