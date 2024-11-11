@@ -103,19 +103,30 @@ func startServer(nodeID, address string) {
 
 func requestCriticalSection(nodeID string) {
 	for _, addr := range nodes {
-		if addr != fmt.Sprintf("localhost:%s", nodeID) {
-			conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-			if err != nil {
-				log.Fatalf("did not connect: %v", err)
-			}
-			defer conn.Close()
-
-			client := pb.NewMutualExclusionClient(conn)
-			resp, err := client.RequestAccess(context.Background(), &pb.Request{NodeId: nodeID})
-			if err != nil || !resp.Granted {
-				fmt.Printf("Node %s request denied by %s\n", nodeID, addr)
-			}
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
 		}
+		defer conn.Close()
+
+		client := pb.NewMutualExclusionClient(conn)
+		resp, err := client.RequestAccess(context.Background(), &pb.Request{NodeId: nodeID})
+		if err != nil || !resp.Granted {
+			fmt.Printf("Node %s request denied by %s\n", nodeID, addr)
+		}
+	}
+}
+
+func releaseCriticalSection(nodeID string) {
+	for _, addr := range nodes {
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("did not connect: %v", err)
+		}
+		defer conn.Close()
+
+		client := pb.NewMutualExclusionClient(conn)
+		client.ReleaseAccess(context.Background(), &pb.Release{NodeId: nodeID})
 	}
 }
 
@@ -126,6 +137,13 @@ func main() {
 
 	nodeID := os.Args[1]
 
+	for _, addr := range nodes {
+		if addr == fmt.Sprintf("localhost:%s", nodeID) {
+			nodes = append(nodes[:0], nodes[1:]...)
+			break
+		}
+	}
+
 	go startServer(nodeID, fmt.Sprintf("localhost:%s", nodeID))
 
 	time.Sleep(2 * time.Second)
@@ -134,16 +152,5 @@ func main() {
 
 	time.Sleep(5 * time.Second)
 
-	for _, addr := range nodes {
-		if addr != fmt.Sprintf("localhost:%s", nodeID) {
-			conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-			if err != nil {
-				log.Fatalf("did not connect: %v", err)
-			}
-			defer conn.Close()
-
-			client := pb.NewMutualExclusionClient(conn)
-			client.ReleaseAccess(context.Background(), &pb.Release{NodeId: nodeID})
-		}
-	}
+	releaseCriticalSection(nodeID)
 }
