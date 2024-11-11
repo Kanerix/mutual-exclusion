@@ -1,13 +1,7 @@
 package main
 
-import (
-	"os"
-
-	"github.com/kanerix/chitty-chat/internal/cmd"
-)
+import "fmt"
 
 func main() {
-	if err := cmd.RootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+	fmt.Println("Hello, World!")
 }

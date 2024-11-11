@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package mutualexclusion;
 
+option go_package = "github.com/kanerix/mutual-exclusion/proto";
+
 service MutualExclusion {
   rpc RequestAccess(Request) returns (Response);
   rpc ReleaseAccess(Release) returns (Response);
