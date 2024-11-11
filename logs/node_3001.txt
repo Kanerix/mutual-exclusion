@@ -1,7 +1,6 @@
-Server 3001 listening on localhost:3001
-Node 3001 request granted by localhost:3002
-[3001] Access Requested by 3002
-[3001] Access Granted to 3002
-[3001] Access Requested by 3003
-Node 3001 released access
-Node 3001 released access
+[1] 3001: access granted by localhost:3002
+[2] 3001: Access Requested by 3002
+[3] 3001: Access Granted to 3002
+[4] 3001: Access Requested by 3003
+3001 released access
+3001 released access

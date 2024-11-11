@@ -40,12 +40,13 @@ func (s *server) RequestAccess(ctx context.Context, req *pb.Request) (*pb.Respon
 	defer s.mu.Unlock()
 
 	s.clock.Max(req.Timestamp)
+	s.clock.Step()
 
 	s.queue = append(s.queue, request{
 		req.NodeId,
 		req.Timestamp,
 	})
-	fmt.Printf("[%s] Access Requested by %s\n", s.nodeID, req.NodeId)
+	fmt.Printf("[%d] %s: Access Requested by %s\n", s.clock.Now(), s.nodeID, req.NodeId)
 
 	sort.Slice(s.queue, func(i, j int) bool {
 		if s.queue[i].timestamp == s.queue[j].timestamp {
@@ -58,7 +59,7 @@ func (s *server) RequestAccess(ctx context.Context, req *pb.Request) (*pb.Respon
 		s.isProcessing = true
 		s.queue = s.queue[1:]
 
-		fmt.Printf("[%s] Access Granted to %s\n", s.nodeID, req.NodeId)
+		fmt.Printf("[%d] %s: Access Granted to %s\n", s.clock.Now(), s.nodeID, req.NodeId)
 		return &pb.Response{Granted: true}, nil
 	}
 
@@ -71,7 +72,7 @@ func (s *server) ReleaseAccess(ctx context.Context, release *pb.Release) (*pb.Re
 
 	s.clock.Step()
 
-	fmt.Printf("[%s] Access Released by %s\n", s.nodeID, release.NodeId)
+	fmt.Printf("[%d] %s: Access Released by %s\n", s.clock.Now(), s.nodeID, release.NodeId)
 	if len(s.queue) > 0 {
 		go s.notify(s.queue[0].nodeID)
 	}
@@ -147,11 +148,11 @@ func requestCriticalSection(nodeID string) {
 		client := pb.NewMutualExclusionClient(conn)
 		resp, err := client.RequestAccess(context.Background(), &pb.Request{NodeId: nodeID, Timestamp: clock.Now()})
 		if err != nil || !resp.Granted {
-			fmt.Printf("Node %s request denied by %s\n", nodeID, addr)
+			fmt.Printf("[%d] %s: request denied by %s\n", clock.Now(), nodeID, addr)
 		}
 
 		if resp.Granted {
-			fmt.Printf("Node %s request granted by %s\n", nodeID, addr)
+			fmt.Printf("[%d] %s: access granted by %s\n", clock.Now(), nodeID, addr)
 			break
 		}
 	}
@@ -174,7 +175,7 @@ func releaseCriticalSection(nodeID string) {
 		client := pb.NewMutualExclusionClient(conn)
 		client.ReleaseAccess(context.Background(), &pb.Release{NodeId: nodeID})
 
-		fmt.Printf("Node %s released access\n", nodeID)
+		fmt.Printf("%s released access\n", nodeID)
 	}
 }
 
