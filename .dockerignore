@@ -1,0 +1,20 @@
+# Git & GitHub
+.git
+.gitignore
+.github
+
+# Genereated protobuf files
+proto/*.pb.go
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Other
+Assignment.md
+README.md
+REPORT.md
+Lamport.png
+LICENSE
+example.log

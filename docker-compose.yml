@@ -1,0 +1,15 @@
+services:
+  server:
+    build: .
+    restart: always
+    ports:
+      - '8080:8080'
+    volumes:
+      - logs:/var/app/logs
+    develop:
+      watch:
+        - action: rebuild
+          path: ./server
+
+volumes:
+  logs:

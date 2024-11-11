@@ -1,0 +1,69 @@
+name: Prepare pipeline and set variables
+
+on:
+  workflow_call:
+    outputs:
+      go_version:
+        description: The Go version to use
+        value: ${{ jobs.prepare-pipeline-vars.outputs.go_version }}
+
+      deploy_env:
+        description: Deployment environment (prod, stag or dev)
+        value: ${{ jobs.prepare-pipeline-vars.outputs.deploy_env }}
+
+jobs:
+  prepare-pipeline-vars:
+    runs-on: ubuntu-latest
+
+    outputs:
+      go_version: ${{ steps.go-version.outputs.GO_VERSION }}
+      deploy_env: ${{ steps.deploy-env.outputs.DEPLOY_ENV }}
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Get deployment environment
+        id: deploy-env
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          echo "Checking deployment environment..."
+
+          if [[ $BRANCH == "main" || $BRANCH == "master" ]]; then
+            DEPLOY_ENV="prod"
+          elif [[ $BRANCH == "staging" ]]; then
+            DEPLOY_ENV="stag"
+          else
+            DEPLOY_ENV="dev"
+          fi
+
+          echo "DEPLOY_ENV=$DEPLOY_ENV"
+          echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_OUTPUT
+      
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+
+      - name: Get go version
+        id: go-version
+        run: |
+          echo "Checking go version..."
+
+          GO_VERSION=$(go version | awk '{print $3}')
+
+          echo "GO_VERSION=$GO_VERSION"
+          echo "GO_VERSION=$GO_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Write pipeline vars summary
+        run: |
+          echo "### Prepare pipeline:
+          <table>
+            <tr>
+              <td>🐨 Go version</td>
+              <td>${{ steps.go-version.outputs.GO_VERSIOn }}</td>
+            </tr>
+            <tr>
+              <td>🎯 Deployment environment</td>
+              <td>${{ steps.deploy-env.outputs.DEPLOY_ENV }}</td>
+            </tr>
+          </table>" >> $GITHUB_STEP_SUMMARY
