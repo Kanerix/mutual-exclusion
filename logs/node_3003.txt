@@ -1,8 +1,7 @@
 Server 3003 listening on localhost:3003
-[3003] Access Requested by 3001
-[3003] Access Granted to 3001
-[3003] Access Requested by 3002
 Node 3003 request denied by localhost:3001
 Node 3003 request denied by localhost:3002
 [3003] Access Released by 3001
 [3003] Access Released by 3002
+Node 3003 released access
+Node 3003 released access
