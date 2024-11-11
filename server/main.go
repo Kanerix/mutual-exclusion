@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kanerix/mutual-exclusion/lamport"
 	pb "github.com/kanerix/mutual-exclusion/proto"
 
 	"google.golang.org/grpc"
@@ -24,7 +25,7 @@ type server struct {
 	nodeID       string
 	isProcessing bool
 	queue        []request
-	clock        *LamportClock
+	clock        *lamport.LamportClock
 }
 
 type request struct {
@@ -98,7 +99,7 @@ func newServer(nodeID string) *server {
 	s := &server{
 		queue:  make([]request, 0),
 		nodeID: nodeID,
-		clock:  NewLamportClock(),
+		clock:  lamport.NewLamportClock(),
 	}
 	return s
 }
@@ -128,7 +129,7 @@ func startServer(nodeID, address string) {
 }
 
 func requestCriticalSection(nodeID string) {
-	clock := NewLamportClock()
+	clock := lamport.NewLamportClock()
 
 	for _, addr := range nodes {
 		if addr == fmt.Sprintf("localhost:%s", nodeID) {
