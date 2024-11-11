@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -20,9 +21,15 @@ import (
 type server struct {
 	pb.UnimplementedMutualExclusionServer
 	mu           sync.Mutex
-	queue        []string
-	isProcessing bool
 	nodeID       string
+	isProcessing bool
+	queue        []request
+	clock        *LamportClock
+}
+
+type request struct {
+	nodeID    string
+	timestamp uint64
 }
 
 var nodes = []string{"localhost:3001", "localhost:3002", "localhost:3003"}
@@ -31,10 +38,22 @@ func (s *server) RequestAccess(ctx context.Context, req *pb.Request) (*pb.Respon
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.queue = append(s.queue, req.NodeId)
+	s.clock.Max(req.Timestamp)
+
+	s.queue = append(s.queue, request{
+		req.NodeId,
+		req.Timestamp,
+	})
 	fmt.Printf("[%s] Access Requested by %s\n", s.nodeID, req.NodeId)
 
-	if !s.isProcessing && s.queue[0] == req.NodeId {
+	sort.Slice(s.queue, func(i, j int) bool {
+		if s.queue[i].timestamp == s.queue[j].timestamp {
+			return s.queue[i].nodeID < s.queue[j].nodeID
+		}
+		return s.queue[i].timestamp < s.queue[j].timestamp
+	})
+
+	if !s.isProcessing && s.queue[0].nodeID == req.NodeId {
 		s.isProcessing = true
 		s.queue = s.queue[1:]
 
@@ -49,9 +68,11 @@ func (s *server) ReleaseAccess(ctx context.Context, release *pb.Release) (*pb.Re
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.clock.Step()
+
 	fmt.Printf("[%s] Access Released by %s\n", s.nodeID, release.NodeId)
 	if len(s.queue) > 0 {
-		go s.notify(s.queue[0])
+		go s.notify(s.queue[0].nodeID)
 	}
 
 	s.isProcessing = false
@@ -75,8 +96,9 @@ func (s *server) notify(targetNode string) {
 
 func newServer(nodeID string) *server {
 	s := &server{
-		queue:  make([]string, 0),
+		queue:  make([]request, 0),
 		nodeID: nodeID,
+		clock:  NewLamportClock(),
 	}
 	return s
 }
@@ -106,7 +128,15 @@ func startServer(nodeID, address string) {
 }
 
 func requestCriticalSection(nodeID string) {
+	clock := NewLamportClock()
+
 	for _, addr := range nodes {
+		if addr == fmt.Sprintf("localhost:%s", nodeID) {
+			continue
+		}
+
+		clock.Step()
+
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
@@ -114,15 +144,26 @@ func requestCriticalSection(nodeID string) {
 		defer conn.Close()
 
 		client := pb.NewMutualExclusionClient(conn)
-		resp, err := client.RequestAccess(context.Background(), &pb.Request{NodeId: nodeID})
+		resp, err := client.RequestAccess(context.Background(), &pb.Request{NodeId: nodeID, Timestamp: clock.Now()})
 		if err != nil || !resp.Granted {
 			fmt.Printf("Node %s request denied by %s\n", nodeID, addr)
 		}
+
+		if resp.Granted {
+			fmt.Printf("Node %s request granted by %s\n", nodeID, addr)
+			break
+		}
 	}
+
+	time.Sleep(1 * time.Second)
 }
 
 func releaseCriticalSection(nodeID string) {
 	for _, addr := range nodes {
+		if addr == fmt.Sprintf("localhost:%s", nodeID) {
+			continue
+		}
+
 		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("did not connect: %v", err)
@@ -131,6 +172,8 @@ func releaseCriticalSection(nodeID string) {
 
 		client := pb.NewMutualExclusionClient(conn)
 		client.ReleaseAccess(context.Background(), &pb.Release{NodeId: nodeID})
+
+		fmt.Printf("Node %s released access\n", nodeID)
 	}
 }
 
@@ -140,13 +183,6 @@ func main() {
 	}
 
 	nodeID := os.Args[1]
-
-	for _, addr := range nodes {
-		if addr == fmt.Sprintf("localhost:%s", nodeID) {
-			nodes = append(nodes[:0], nodes[1:]...)
-			break
-		}
-	}
 
 	go startServer(nodeID, fmt.Sprintf("localhost:%s", nodeID))
 
